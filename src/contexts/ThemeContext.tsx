@@ -44,10 +44,11 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     // Apply theme to document
+    const root = document.documentElement;
     if (isDarkMode) {
-      document.documentElement.classList.add('dark');
+      root.classList.add('dark');
     } else {
-      document.documentElement.classList.remove('dark');
+      root.classList.remove('dark');
     }
     
     // Save to localStorage
@@ -55,10 +56,16 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   }, [isDarkMode]);
 
   useEffect(() => {
+    // Apply font size globally
+    document.documentElement.style.setProperty('--base-font-size', `${fontSize}px`);
     localStorage.setItem('fontSize', fontSize.toString());
   }, [fontSize]);
 
   useEffect(() => {
+    // Apply font family globally
+    const fontClass = `font-${fontFamily}`;
+    document.body.className = document.body.className.replace(/font-\w+/g, '');
+    document.body.classList.add(fontClass);
     localStorage.setItem('fontFamily', fontFamily);
   }, [fontFamily]);
 
