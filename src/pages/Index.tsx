@@ -4,13 +4,12 @@ import { TypingTest } from '@/components/typing/TypingTest';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import { Lessons } from '@/components/lessons/Lessons';
 import { Leaderboard } from '@/components/leaderboard/Leaderboard';
-import { Settings } from '@/components/settings/Settings';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Keyboard, Trophy, BookOpen, TrendingUp, Settings as SettingsIcon } from 'lucide-react';
+import { Keyboard, Trophy, BookOpen, TrendingUp } from 'lucide-react';
 
-type ActiveSection = 'home' | 'test' | 'lessons' | 'dashboard' | 'leaderboard' | 'settings';
+type ActiveSection = 'home' | 'test' | 'lessons' | 'dashboard' | 'leaderboard';
 
 const Index = () => {
   const [activeSection, setActiveSection] = useState<ActiveSection>('home');
@@ -25,8 +24,6 @@ const Index = () => {
         return <Dashboard onBack={() => setActiveSection('home')} />;
       case 'leaderboard':
         return <Leaderboard onBack={() => setActiveSection('home')} />;
-      case 'settings':
-        return <Settings onBack={() => setActiveSection('home')} />;
       default:
         return <HomePage onNavigate={setActiveSection} />;
     }
