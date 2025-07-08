@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, RotateCcw, Timer } from 'lucide-react';
@@ -34,10 +33,18 @@ export const TypingTest = ({ onBack }: TypingTestProps) => {
   const [startTime, setStartTime] = useState<number | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [testStats, setTestStats] = useState<TestStats | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     resetTest();
   }, []);
+
+  useEffect(() => {
+    // Auto-focus the textarea when component mounts or resets
+    if (textareaRef.current && !showResults) {
+      textareaRef.current.focus();
+    }
+  }, [testText, showResults]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -224,9 +231,10 @@ export const TypingTest = ({ onBack }: TypingTestProps) => {
               {renderText()}
             </div>
             <textarea
+              ref={textareaRef}
               value={userInput}
               onChange={handleInputChange}
-              placeholder={isActive ? "" : "Start typing to begin the test..."}
+              placeholder=""
               className="w-full h-32 p-4 border rounded-lg font-mono text-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={timeLeft === 0}
             />
