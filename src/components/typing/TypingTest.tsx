@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,12 +8,6 @@ import { useTheme } from '@/contexts/ThemeContext';
 
 interface TypingTestProps {
   onBack: () => void;
-}
-
-interface TestResultsData {
-  wpm: number;
-  accuracy: number;
-  duration: number;
 }
 
 const sampleTexts = [
@@ -31,15 +26,23 @@ export const TypingTest = ({ onBack }: TypingTestProps) => {
   const [timeLeft, setTimeLeft] = useState(60);
   const [accuracy, setAccuracy] = useState(100);
   const [currentWPM, setCurrentWPM] = useState(0);
-  const [testResults, setTestResults] = useState<TestResultsData | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [testDuration, setTestDuration] = useState(60);
+  const [errors, setErrors] = useState(0);
+  const [correctChars, setCorrectChars] = useState(0);
+  const [totalChars, setTotalChars] = useState(0);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setSampleText(sampleTexts[Math.floor(Math.random() * sampleTexts.length)]);
   }, []);
+
+  useEffect(() => {
+    if (inputRef.current && !isTestActive && timeLeft === testDuration) {
+      inputRef.current.focus();
+    }
+  }, [isTestActive, timeLeft, testDuration]);
 
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
@@ -55,15 +58,31 @@ export const TypingTest = ({ onBack }: TypingTestProps) => {
     return () => clearInterval(intervalId);
   }, [isTestActive, timeLeft]);
 
-  const calculateAccuracy = () => {
-    const correctChars = sampleText.split('').reduce((count, char, index) => {
-      return count + (char === userInput[index] ? 1 : 0);
-    }, 0);
-    return sampleText.length > 0 ? Math.round((correctChars / sampleText.length) * 100) : 100;
+  const calculateStats = () => {
+    let correctCount = 0;
+    let errorCount = 0;
+    
+    for (let i = 0; i < Math.min(userInput.length, sampleText.length); i++) {
+      if (userInput[i] === sampleText[i]) {
+        correctCount++;
+      } else {
+        errorCount++;
+      }
+    }
+    
+    const totalTyped = userInput.length;
+    const accuracyPercent = totalTyped > 0 ? Math.round((correctCount / totalTyped) * 100) : 100;
+    
+    return {
+      correctChars: correctCount,
+      errors: errorCount,
+      totalChars: totalTyped,
+      accuracy: accuracyPercent
+    };
   };
 
   const calculateWPM = () => {
-    const wordsTyped = userInput.split(' ').length;
+    const wordsTyped = userInput.trim().split(/\s+/).length;
     const minutesTaken = (testDuration - timeLeft) / 60;
     return minutesTaken > 0 ? Math.round(wordsTyped / minutesTaken) : 0;
   };
@@ -73,16 +92,22 @@ export const TypingTest = ({ onBack }: TypingTestProps) => {
     setTimeLeft(testDuration);
     setUserInput('');
     setShowResults(false);
+    setErrors(0);
+    setCorrectChars(0);
+    setTotalChars(0);
     inputRef?.current?.focus();
   };
 
   const endTest = () => {
     setIsTestActive(false);
-    const accuracy = calculateAccuracy();
+    const stats = calculateStats();
     const wpm = calculateWPM();
-    setAccuracy(accuracy);
+    
+    setAccuracy(stats.accuracy);
     setCurrentWPM(wpm);
-    setTestResults({ wpm, accuracy, duration: testDuration });
+    setErrors(stats.errors);
+    setCorrectChars(stats.correctChars);
+    setTotalChars(stats.totalChars);
     setShowResults(true);
   };
 
@@ -93,15 +118,24 @@ export const TypingTest = ({ onBack }: TypingTestProps) => {
     setAccuracy(100);
     setCurrentWPM(0);
     setShowResults(false);
+    setErrors(0);
+    setCorrectChars(0);
+    setTotalChars(0);
     setSampleText(sampleTexts[Math.floor(Math.random() * sampleTexts.length)]);
-    inputRef?.current?.focus();
+    setTimeout(() => {
+      inputRef?.current?.focus();
+    }, 100);
   };
 
   const handleInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (isTestActive) {
       setUserInput(event.target.value);
-      setAccuracy(calculateAccuracy());
+      const stats = calculateStats();
+      setAccuracy(stats.accuracy);
       setCurrentWPM(calculateWPM());
+      setErrors(stats.errors);
+      setCorrectChars(stats.correctChars);
+      setTotalChars(stats.totalChars);
     }
   };
 
@@ -224,8 +258,15 @@ export const TypingTest = ({ onBack }: TypingTestProps) => {
           </Card>
         ) : (
           <TestResults
-            results={testResults!}
-            onRetry={resetTest}
+            stats={{
+              wpm: currentWPM,
+              accuracy: accuracy,
+              errors: errors,
+              correctChars: correctChars,
+              totalChars: totalChars,
+              timeElapsed: testDuration - timeLeft
+            }}
+            onRestart={resetTest}
             onBack={onBack}
           />
         )}
