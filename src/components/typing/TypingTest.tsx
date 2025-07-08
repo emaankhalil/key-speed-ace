@@ -1,245 +1,234 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, RotateCcw, Timer } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Timer, Target, Gauge } from 'lucide-react';
 import { TestResults } from './TestResults';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface TypingTestProps {
   onBack: () => void;
 }
 
-interface TestStats {
+interface TestResultsData {
   wpm: number;
   accuracy: number;
-  errors: number;
-  correctChars: number;
-  totalChars: number;
-  timeElapsed: number;
+  duration: number;
 }
 
 const sampleTexts = [
-  "The quick brown fox jumps over the lazy dog. This sentence contains every letter of the alphabet and is commonly used for typing practice.",
-  "In a hole in the ground there lived a hobbit. Not a nasty, dirty, wet hole filled with the ends of worms and an oozy smell, nor yet a dry, bare, sandy hole.",
-  "Technology has revolutionized the way we communicate, work, and live. From smartphones to artificial intelligence, innovation continues to shape our future.",
-  "Practice makes perfect when it comes to typing. Regular exercise and proper finger placement will significantly improve your speed and accuracy over time."
+  "The quick brown fox jumps over the lazy dog.",
+  "Coding is a superpower that allows you to create amazing things.",
+  "Practice makes perfect, so keep typing and improving your skills.",
+  "The best way to learn is by doing, so start coding today!",
+  "Hello, world! This is a simple typing test to get you started."
 ];
 
 export const TypingTest = ({ onBack }: TypingTestProps) => {
-  const [testText, setTestText] = useState('');
+  const { fontSize, fontFamily } = useTheme();
+  const [sampleText, setSampleText] = useState(sampleTexts[0]);
   const [userInput, setUserInput] = useState('');
-  const [isActive, setIsActive] = useState(false);
+  const [isTestActive, setIsTestActive] = useState(false);
   const [timeLeft, setTimeLeft] = useState(60);
-  const [testDuration, setTestDuration] = useState(60);
-  const [startTime, setStartTime] = useState<number | null>(null);
+  const [accuracy, setAccuracy] = useState(100);
+  const [currentWPM, setCurrentWPM] = useState(0);
+  const [testResults, setTestResults] = useState<TestResultsData | null>(null);
   const [showResults, setShowResults] = useState(false);
-  const [testStats, setTestStats] = useState<TestStats | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [testDuration, setTestDuration] = useState(60);
+
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    resetTest();
+    setSampleText(sampleTexts[Math.floor(Math.random() * sampleTexts.length)]);
   }, []);
 
   useEffect(() => {
-    // Auto-focus the textarea when component mounts or resets
-    if (textareaRef.current && !showResults) {
-      textareaRef.current.focus();
-    }
-  }, [testText, showResults]);
+    let intervalId: NodeJS.Timeout;
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isActive && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((time) => time - 1);
+    if (isTestActive && timeLeft > 0) {
+      intervalId = setInterval(() => {
+        setTimeLeft((prevTime) => prevTime - 1);
       }, 1000);
     } else if (timeLeft === 0) {
-      finishTest();
+      endTest();
     }
-    return () => clearInterval(interval);
-  }, [isActive, timeLeft]);
 
-  const resetTest = useCallback(() => {
-    const randomText = sampleTexts[Math.floor(Math.random() * sampleTexts.length)];
-    setTestText(randomText);
-    setUserInput('');
-    setIsActive(false);
-    setTimeLeft(testDuration);
-    setStartTime(null);
-    setShowResults(false);
-    setTestStats(null);
-  }, [testDuration]);
+    return () => clearInterval(intervalId);
+  }, [isTestActive, timeLeft]);
+
+  const calculateAccuracy = () => {
+    const correctChars = sampleText.split('').reduce((count, char, index) => {
+      return count + (char === userInput[index] ? 1 : 0);
+    }, 0);
+    return sampleText.length > 0 ? Math.round((correctChars / sampleText.length) * 100) : 100;
+  };
+
+  const calculateWPM = () => {
+    const wordsTyped = userInput.split(' ').length;
+    const minutesTaken = (testDuration - timeLeft) / 60;
+    return minutesTaken > 0 ? Math.round(wordsTyped / minutesTaken) : 0;
+  };
 
   const startTest = () => {
-    if (!isActive) {
-      setIsActive(true);
-      setStartTime(Date.now());
+    setIsTestActive(true);
+    setTimeLeft(testDuration);
+    setUserInput('');
+    setShowResults(false);
+    inputRef?.current?.focus();
+  };
+
+  const endTest = () => {
+    setIsTestActive(false);
+    const accuracy = calculateAccuracy();
+    const wpm = calculateWPM();
+    setAccuracy(accuracy);
+    setCurrentWPM(wpm);
+    setTestResults({ wpm, accuracy, duration: testDuration });
+    setShowResults(true);
+  };
+
+  const resetTest = () => {
+    setIsTestActive(false);
+    setTimeLeft(testDuration);
+    setUserInput('');
+    setAccuracy(100);
+    setCurrentWPM(0);
+    setShowResults(false);
+    setSampleText(sampleTexts[Math.floor(Math.random() * sampleTexts.length)]);
+    inputRef?.current?.focus();
+  };
+
+  const handleInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (isTestActive) {
+      setUserInput(event.target.value);
+      setAccuracy(calculateAccuracy());
+      setCurrentWPM(calculateWPM());
     }
   };
 
-  const finishTest = () => {
-    if (isActive && startTime) {
-      const timeElapsed = (Date.now() - startTime) / 1000;
-      const totalChars = userInput.length;
-      const correctChars = calculateCorrectChars();
-      const errors = totalChars - correctChars;
-      const wpm = Math.round((correctChars / 5) / (timeElapsed / 60));
-      const accuracy = totalChars > 0 ? Math.round((correctChars / totalChars) * 100) : 0;
-
-      const stats: TestStats = {
-        wpm,
-        accuracy,
-        errors,
-        correctChars,
-        totalChars,
-        timeElapsed
-      };
-
-      setTestStats(stats);
-      setIsActive(false);
-      setShowResults(true);
+  const getFontFamilyStyle = () => {
+    switch (fontFamily) {
+      case 'mono':
+        return 'monospace';
+      case 'serif':
+        return 'serif';
+      default:
+        return fontFamily;
     }
   };
-
-  const calculateCorrectChars = () => {
-    let correct = 0;
-    for (let i = 0; i < Math.min(userInput.length, testText.length); i++) {
-      if (userInput[i] === testText[i]) {
-        correct++;
-      }
-    }
-    return correct;
-  };
-
-  const getCurrentWPM = () => {
-    if (!startTime) return 0;
-    const timeElapsed = (Date.now() - startTime) / 1000;
-    const correctChars = calculateCorrectChars();
-    return Math.round((correctChars / 5) / (timeElapsed / 60)) || 0;
-  };
-
-  const getCurrentAccuracy = () => {
-    if (userInput.length === 0) return 100;
-    const correctChars = calculateCorrectChars();
-    return Math.round((correctChars / userInput.length) * 100);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    if (!isActive && value.length > 0) {
-      startTest();
-    }
-    if (value.length <= testText.length) {
-      setUserInput(value);
-    }
-  };
-
-  const renderText = () => {
-    return testText.split('').map((char, index) => {
-      let className = 'text-gray-400';
-      if (index < userInput.length) {
-        className = userInput[index] === char ? 'text-green-600 bg-green-100' : 'text-red-600 bg-red-100';
-      } else if (index === userInput.length) {
-        className = 'text-gray-800 bg-blue-200 border-l-2 border-blue-500';
-      }
-      
-      return (
-        <span key={index} className={`${className} px-0.5 transition-colors duration-150`}>
-          {char}
-        </span>
-      );
-    });
-  };
-
-  if (showResults && testStats) {
-    return <TestResults stats={testStats} onRestart={resetTest} onBack={onBack} />;
-  }
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <Button onClick={onBack} variant="ghost" className="mb-4">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Home
-        </Button>
-      </div>
-
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Test Controls */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center">
-                <Timer className="h-5 w-5 mr-2" />
-                Typing Test
-              </CardTitle>
-              <div className="flex items-center space-x-4">
-                <select 
-                  value={testDuration} 
-                  onChange={(e) => setTestDuration(Number(e.target.value))}
-                  className="border rounded px-3 py-1"
-                  disabled={isActive}
-                >
-                  <option value={30}>30 seconds</option>
-                  <option value={60}>1 minute</option>
-                  <option value={180}>3 minutes</option>
-                  <option value={300}>5 minutes</option>
-                </select>
-                <Button onClick={resetTest} variant="outline" size="sm">
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Reset
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-
-        {/* Stats Display */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-blue-600">{timeLeft}s</div>
-              <p className="text-sm text-gray-600">Time Left</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-green-600">{getCurrentWPM()}</div>
-              <p className="text-sm text-gray-600">WPM</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-purple-600">{getCurrentAccuracy()}%</div>
-              <p className="text-sm text-gray-600">Accuracy</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-orange-600">{userInput.length - calculateCorrectChars()}</div>
-              <p className="text-sm text-gray-600">Errors</p>
-            </CardContent>
-          </Card>
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center mb-8">
+          <Button
+            variant="ghost"
+            onClick={onBack}
+            className="mr-4"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <h1 className="text-2xl md:text-3xl font-bold">Typing Test</h1>
         </div>
+        
+        {!showResults ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Typing Test</span>
+                <div className="flex items-center space-x-4 text-sm">
+                  <div className="flex items-center">
+                    <Timer className="h-4 w-4 mr-1" />
+                    {Math.max(0, timeLeft)}s
+                  </div>
+                  <div className="flex items-center">
+                    <Gauge className="h-4 w-4 mr-1" />
+                    {currentWPM} WPM
+                  </div>
+                  <div className="flex items-center">
+                    <Target className="h-4 w-4 mr-1" />
+                    {accuracy}%
+                  </div>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Test Duration Selection */}
+              {!isTestActive && (
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-sm font-medium">Duration:</span>
+                  {[15, 30, 60, 120].map((duration) => (
+                    <Button
+                      key={duration}
+                      variant={testDuration === duration ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setTestDuration(duration)}
+                    >
+                      {duration}s
+                    </Button>
+                  ))}
+                </div>
+              )}
 
-        {/* Typing Area */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Type the text below:</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="bg-gray-50 p-6 rounded-lg font-mono text-lg leading-relaxed">
-              {renderText()}
-            </div>
-            <textarea
-              ref={textareaRef}
-              value={userInput}
-              onChange={handleInputChange}
-              placeholder=""
-              className="w-full h-32 p-4 border rounded-lg font-mono text-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={timeLeft === 0}
-            />
-          </CardContent>
-        </Card>
+              {/* Typing Area */}
+              <div className="space-y-4">
+                <div 
+                  className="p-6 bg-muted rounded-lg border-2 border-dashed border-muted-foreground/25 min-h-[200px] text-lg leading-relaxed select-none"
+                  style={{ 
+                    fontSize: `${fontSize}px`,
+                    fontFamily: getFontFamilyStyle()
+                  }}
+                >
+                  {sampleText.split('').map((char, index) => {
+                    let className = '';
+                    if (index < userInput.length) {
+                      className = userInput[index] === char ? 'text-green-600' : 'text-red-600 bg-red-100';
+                    } else if (index === userInput.length) {
+                      className = 'bg-blue-200 animate-pulse';
+                    }
+                    
+                    return (
+                      <span key={index} className={className}>
+                        {char}
+                      </span>
+                    );
+                  })}
+                </div>
+
+                <textarea
+                  ref={inputRef}
+                  value={userInput}
+                  onChange={handleInputChange}
+                  className="w-full h-24 p-4 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={!isTestActive && timeLeft === 0}
+                  style={{ 
+                    fontSize: `${fontSize}px`,
+                    fontFamily: getFontFamilyStyle()
+                  }}
+                />
+              </div>
+
+              {/* Control Buttons */}
+              <div className="flex flex-wrap gap-2">
+                {!isTestActive && timeLeft === testDuration && (
+                  <Button onClick={startTest}>Start Test</Button>
+                )}
+                {isTestActive && (
+                  <Button onClick={resetTest} variant="outline">
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Reset
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <TestResults
+            results={testResults!}
+            onRetry={resetTest}
+            onBack={onBack}
+          />
+        )}
       </div>
     </div>
   );
