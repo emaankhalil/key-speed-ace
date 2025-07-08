@@ -1,9 +1,9 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Keyboard, Home, BookOpen, TrendingUp, Trophy } from 'lucide-react';
+import { Keyboard, Home, BookOpen, TrendingUp, Trophy, Settings } from 'lucide-react';
 
-type ActiveSection = 'home' | 'test' | 'lessons' | 'dashboard' | 'leaderboard';
+type ActiveSection = 'home' | 'test' | 'lessons' | 'dashboard' | 'leaderboard' | 'settings';
 
 interface HeaderProps {
   activeSection: ActiveSection;
@@ -17,6 +17,7 @@ export const Header = ({ activeSection, onNavigate }: HeaderProps) => {
     { id: 'lessons' as const, label: 'Lessons', icon: BookOpen },
     { id: 'dashboard' as const, label: 'Progress', icon: TrendingUp },
     { id: 'leaderboard' as const, label: 'Leaderboard', icon: Trophy },
+    { id: 'settings' as const, label: 'Settings', icon: Settings },
   ];
 
   return (
